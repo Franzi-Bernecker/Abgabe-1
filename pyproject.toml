@@ -1,12 +1,19 @@
 [project]
-name = "Abgabe-3"
+name = "Abgaben"
 version = "0.1.0"
 description = "Default template for PDM package"
 authors = [
     {name = "laurenzkeller05", email = "laurenz.keller05@gmail.com"},
 ]
-dependencies = ["numpy>=2.4.6", "pandas>=3.0.3", "plotly>=6.7.0", "kaleido>=1.3.0"]
-requires-python = "==3.14.*"
+dependencies = [
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "plotly>=6.7.0",
+    "kaleido>=1.3.0",
+    "streamlit",
+    "pillow",
+]
+requires-python = "==3.13.*"
 readme = "README.md"
 license = {text = "MIT"}
 
