@@ -1,31 +1,55 @@
-import os
-from read_data import lade_aktivitaets_daten, validate_data
-from power_curve import calculate_power_curve, plot_power_curve, save_power_curve
+import streamlit as st
+from person import Person
+from ekgdata import EKGdata
 
+st.set_page_config(page_title="EKG-Analyse", layout="wide")
+st.title("EKG-Analyse Dashboard")
 
-#Pfad zur Datenquelle
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "..", "Data", "activity.csv")
+# Personen laden und Dropdown befüllen
+person_data = Person.load_person_data()
+person_names = ["Bitte auswählen"] + Person.get_person_list(person_data)
 
+selected_name = st.sidebar.selectbox("Person", options=person_names)
 
-def main():
-    df = lade_aktivitaets_daten(DATA_PATH)
+if selected_name == "Bitte auswählen":
+    st.info("Bitte wähle eine Person in der Sidebar aus.")
+else:
+    person_dict = Person.find_person_data_by_name(selected_name)
+    person = Person(person_dict)
 
-    if df is not None:
-        df = validate_data(df)
+    # Personen-Info anzeigen
+    st.header(f"{person.firstname} {person.lastname}")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        st.image(person.picture_path, width=200)
+    with col2:
+        st.metric("Alter", f"{person.calc_age()} Jahre")
+        st.metric("Max. Herzfrequenz", f"{person.calc_max_heart_rate()} bpm")
 
-    if df is None:
-        return
+    st.divider()
 
-    result = calculate_power_curve(df["PowerOriginal"], df["Duration"])
-    print("\nPower Curve Ergebnisse:")
-    print(result.to_string(index=False))
+    if not person.ekg_tests:
+        st.error("Keine EKG-Daten für diese Person vorhanden.")
+    else:
+        # EKG-Test auswählen
+        test_options = {"Bitte auswählen": None}
+        test_options.update({f"Test {t['id']} ({t['date']})": t["id"] for t in person.ekg_tests})
 
-    fig = plot_power_curve(result)
-    save_power_curve(fig)
-    fig.show()
+        selected_test = st.sidebar.selectbox("EKG-Test", options=test_options.keys())
+        test_id = test_options[selected_test]
 
+        if test_id is None:
+            st.info("Bitte wähle einen EKG-Test in der Sidebar aus.")
+        else:
+            # EKG analysieren und anzeigen
+            ekg = EKGdata.load_by_id(test_id)
+            ekg.find_peaks()
+            hr = ekg.estimate_hr()
 
-if __name__ == "__main__":
-    main()
+            col_hr, col_peaks = st.columns(2)
+            with col_hr:
+                st.metric("Durchschnittliche Herzfrequenz", f"{hr} bpm")
+            with col_peaks:
+                st.metric("Erkannte Herzschläge", f"{len(ekg.peaks)}")
 
+            st.plotly_chart(ekg.plot_time_series(), use_container_width=True)

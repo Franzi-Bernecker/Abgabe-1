@@ -1,95 +1,103 @@
+# EKG-Analyse Dashboard
 
-# Abgabe 3 — Leistungskurve (Power Curve)
+Eine Streamlit-Web-App zur Analyse von EKG-Daten verschiedener Probanden. Peaks (R-Zacken) werden automatisch erkannt und die Herzfrequenz berechnet.
 
-Dieses Python-Projekt berechnet und visualisiert die sportwissenschaftliche Leistungskurve (Power Curve) aus Radsport-Aktivitätsdaten.
+## Architektur
 
----
+```mermaid
+graph LR
+    A[main.py] -->|verwendet| B[Person]
+    A -->|verwendet| C[EKGdata]
+    B -->|liest| D[person_db.json]
+    C -->|liest| E[ekg_data/*.txt]
+```
 
-## Kurzbeschreibung
+## Klassendiagramm
 
-Die Module lesen Leistungsdaten (Watt), validieren sie, berechnen maximale Durchschnittsleistungen über verschiedene Zeitintervalle und erstellen einen Plot der Power Curve.
+```mermaid
+classDiagram
+    class Person {
+        +int id
+        +int date_of_birth
+        +str firstname
+        +str lastname
+        +str picture_path
+        +list ekg_tests
+        +str gender
+        +load_person_data()$ list
+        +get_person_list(person_data)$ list
+        +find_person_data_by_name(name)$ dict
+        +load_by_id(person_id)$ Person
+        +calc_age() int
+        +calc_max_heart_rate() int
+        +get_full_name() str
+    }
 
-Hauptfunktionen:
-- Datenvalidierung (fehlende Werte, unplausible Zeitangaben, reine Nullen)
-- Berechnung der maximalen Durchschnittsleistung für verschiedene Intervalle
-- Visualisierung der Power Curve
+    class EKGdata {
+        +int id
+        +str date
+        +str result_link
+        +DataFrame df
+        +list peaks
+        +int heart_rate
+        +load_by_id(ekg_id)$ EKGdata
+        +find_peaks(threshold, min_distance) list
+        +estimate_hr() int
+        +plot_time_series() Figure
+    }
 
----
+    Person "1" --> "*" EKGdata : ekg_tests
+```
 
-## Voraussetzungen
+## Workflow
 
-- Python 3.12 oder neuer
-- PDM (oder alternativ pip/venv)
+```mermaid
+flowchart TD
+    A[Person auswählen] --> B[Person anzeigen]
+    B --> C{EKG-Daten vorhanden?}
+    C -->|Ja| D[Test auswählen]
+    C -->|Nein| E[Fehler anzeigen]
+    D --> F[Herzfrequenz berechnen]
+    D --> G[EKG-Plot mit Peaks]
+```
 
----
-
-## Installation & Start
-
-1. Abhängigkeiten installieren:
+## Installation
 
 ```bash
 pdm install
 ```
 
-2. Programm starten:
+## Starten
 
 ```bash
-pdm run python src/main.py
+pdm run streamlit run src/main.py
 ```
 
----
+Die App ist dann unter [http://localhost:8501](http://localhost:8501) erreichbar.
 
 ## Projektstruktur
 
 ```
-./
-├── Data/                   # Eingabedaten (z. B. activity.csv)
-├── src/                    # Quellcode
-│   ├── main.py             # Einstiegspunkt
-│   ├── power_curve.py      # Berechnung und Hilfsfunktionen
-│   └── read_data.py        # Einlesen & Vorverarbeitung
-├── results/                # Ausgabedateien (Plots, Tabellen)
-├── pyproject.toml
-└── README.md
+├── src/
+│   ├── main.py          # Streamlit-App (UI + Workflow)
+│   ├── person.py        # Person-Klasse
+│   └── ekgdata.py       # EKGdata-Klasse (Peak-Detection, HR)
+├── Data/
+│   ├── person_db.json   # Personen-Datenbank
+│   ├── ekg_data/        # EKG-Rohdaten (1000 Hz, mV + ms)
+│   └── pictures/        # Profilbilder
+└── pyproject.toml
 ```
 
-![Power Curve](results/power_curve.png)
+## Technologien
 
----
+| Komponente | Technologie |
+|-----------|-------------|
+| UI | Streamlit |
+| Datenverarbeitung | Pandas, NumPy |
+| Visualisierung | Plotly |
+| Paketmanager | PDM |
 
-## Datenformat
-
-Die erwartete CSV-Datei (z. B. `Data/activity.csv`) sollte mindestens die folgenden Spalten enthalten:
-
-- `PowerOriginal` — Leistungswerte in Watt
-- `Duration` — Dauer/Auflösung der Messpunkte in Sekunden
-
-Hinweis: Weitere Spalten werden toleriert, solange die beiden oben genannten vorhanden sind
-
----
-
-## Wie es genau funktioniert
-
-- Dynamische Fensterwahl: Das Programm verwendet eine standardisierte 1-2-5-Reihe (z. B. 1s, 2s, 5s, 10s, 30s, 60s, 300s, 1800s, …) und ergänzt zusätzlich immer die exakte Gesamtdauer der Aktivität als Fenster. So ist z. B. eine 30‑Minuten-Auswertung (1800s) automatisch enthalten, sofern die Aktivität lang genug ist.
-- Zeitliche Auflösung / `Duration`: Jeder Messwert kann eine eigene `Duration` haben — es wird also nicht von festen 1‑Sekunden-Samples ausgegangen. Die Berechnung arbeitet mit kumulierter Zeit (cumulative time) und summiert innerhalb eines Fensters die gewichtete Leistung (`PowerOriginal * Duration`), teilt durch die gesamte im Fenster betrachtete Dauer und erhält so das genaue zeitgewichtete Mittel.
-- Sliding-window-Logik: Für jedes Fenster (z. B. 10s, 30s, 60s ...) verschiebt der Algorithmus das Startfenster über die Messreihe, berechnet die durchschnittliche Leistung über alle überlappenden Messwerte (unter Berücksichtigung ihrer Dauer) und nimmt das Maximum über alle Startpositionen als Ergebnis für dieses Fenster.
-- Robustheit gegenüber Dateiformaten: Solange die CSV die Spalten `PowerOriginal` und `Duration` enthält, kann die Datei eingelesen werden — zusätzliche Spalten werden ignoriert. Fehlende oder ungültige Werte werden gefiltert; bei fehlenden Pflichtspalten bricht das Programm mit einer Fehlermeldung ab.
-- Ausgabe: Das Ergebnis ist ein DataFrame mit Spalten `Zeit` (Sekunden) und `Leistung` (Watt). Zusätzlich wird eine interaktive Plotly‑Grafik erzeugt, auf einer logarithmischen Zeitachse dargestellt und als `results/power_curve.png` gespeichert.
-
----
-
-## Abhängigkeiten
-
-- pandas
-- numpy (optional, wird indirekt über pandas genutzt)
-- plotly (für die Visualisierung)
-- kaleido (benötigt für `fig.write_image()` beim Speichern als PNG)
-
----
-
-## Autoren
-
-- Franzi Bernecker
-- Laurenz Keller
-
----
+Autoren:
+Franziska Bernecker
+Laurenz Keller
