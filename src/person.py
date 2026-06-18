@@ -1,4 +1,7 @@
 from datetime import date
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Person:
@@ -8,7 +11,7 @@ class Person:
         self.date_of_birth = person_dict["date_of_birth"]
         self.firstname = person_dict["firstname"]
         self.lastname = person_dict["lastname"]
-        self.picture_path = person_dict.get("picture_path", "data/pictures/none.jpg")
+        self.picture_path = str(BASE_DIR / person_dict.get("picture_path", "data/pictures/none.jpg"))
         self.ekg_tests = person_dict.get("ekg_tests", [])
         self.gender = person_dict.get("gender", "male")
 
