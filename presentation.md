@@ -164,19 +164,13 @@ Ein Arzt betreut mehrere Patienten und hat Zugriff auf:
 
 ## Zwei Perspektiven, eine App
 
-| Rolle | Sicht | Funktionen |
-|-------|-------|------------|
-| **Arzt** | Alle Patienten | Anlegen, EKG hochladen, Analysieren |
-| **Patient** | Nur eigene Daten | EKG ansehen, Aktivitäten & GPX hochladen |
-
-<br>
-
-| | Arzt | Patient |
-|---|:---:|:---:|
-| Alle Patienten sehen | ✅ | ❌ |
-| EKG analysieren | ✅ | ✅ (eigenes) |
-| Stammdaten editieren | ✅ | ❌ |
-| Daten hochladen | ✅ | ✅ |
+| Funktion | Arzt | Patient |
+|----------|------|---------|
+| Datensicht | Alle Patienten | Nur eigene Daten |
+| Patienten anlegen | Ja | Nein |
+| EKG hochladen & analysieren | Ja | Nur eigenes EKG ansehen |
+| Stammdaten bearbeiten | Ja | Nein |
+| Aktivitäten & GPX hochladen | Ja | Ja |
 
 ---
 
@@ -272,59 +266,6 @@ CardioConnect/
 
 <!-- _class: section-divider -->
 
-# Workflows
-
-<p>Arzt- und Patienten-Journey</p>
-
----
-
-<!-- _class: diagram -->
-
-## Arzt-Workflow
-
-```
-Einloggen (Arzt)
-      │
-      ▼
-Patienten-Übersicht
-      │
-      ├─────────────────────┐
-      ▼                     ▼
-Patient wählen      Neuen Patient anlegen
-      │                     │
-      ▼                     ▼
-EKG · Aktivität · GPX   In DB speichern
-      │
-      ├─ EKG-Test wählen → Plot anzeigen
-      ├─ Live-EKG-Monitor starten
-      └─ Anomalien prüfen
-```
-
----
-
-<!-- _class: diagram -->
-
-## Patienten-Workflow
-
-```
-Einloggen (Patient)
-      │
-      ▼
-Eigenes Profil laden
-      │
-      ├──────────────────┐
-      ▼                  ▼
-  Daten ansehen     Daten hochladen
-      │                  │
-      ├─ EKG-Auswertung  ├─ Aktivität (CSV)
-      ├─ Live-Monitor    └─ GPX-Track
-      └─ Aktivitätsverlauf
-```
-
----
-
-<!-- _class: section-divider -->
-
 # Features
 
 <p>EKG-Analyse, Monitor & Extras</p>
@@ -338,23 +279,8 @@ Eigenes Profil laden
 - **Zeitbereich-Auswahl** — Plotly Range Slider zum Reinzoomen
 - **Caching & Downsampling** — performant bei 300k+ Datenpunkten
 - **Gleitender HR-Durchschnitt** — Trends sichtbar machen
-- **HRV** — SDNN & RMSSD für Stress- und Fitness-Indikatoren
+- **Live-EKG-Monitor** — Simulation wie am Krankenhausmonitor
 
----
-
-<!-- _class: monitor-accent -->
-
-## Live-EKG-Monitor
-
-Simulation wie am **Krankenhausmonitor**:
-
-- Scrollende EKG-Kurve in Echtzeit (5–10 Sek. Fenster)
-- R-Zacken laufen durch — Herzschlag pulsiert sichtbar
-- **Live-BPM** aktualisiert sich mit erkannten Peaks
-- Monitor-Design: schwarzer Hintergrund, grüne Signallinie
-- Play/Pause · Geschwindigkeit 1× / 2×
-
-> Macht die App beim Pitch lebendig und medizinisch authentisch.
 
 ---
 
@@ -365,9 +291,6 @@ Simulation wie am **Krankenhausmonitor**:
 - **Tachykardie / Bradykardie** — außerhalb der Normwerte
 - **Visuell** — rote Markierungen im Plot + Summary-Report
 
-<br>
-
-→ Killer-Feature für den Kardiologen: *„Zeig mir, wo etwas nicht stimmt."*
 
 ---
 
@@ -384,13 +307,6 @@ Simulation wie am **Krankenhausmonitor**:
 ### Datenverwaltung
 - Patienten anlegen & editieren (Arzt) · Upload mit Validierung
 
----
-
-<!-- _class: section-divider -->
-
-# Tech Stack & UI
-
-<p>Technologien und Design-Konzept</p>
 
 ---
 
@@ -408,18 +324,6 @@ Simulation wie am **Krankenhausmonitor**:
 
 ---
 
-## UI-Konzept
-
-| Bereich | Umsetzung |
-|---------|-----------|
-| **Farbschema** | Medizinisch — Blautöne, dezente Akzente |
-| **Live-Monitor** | Schwarzer Hintergrund, grüne Signallinie |
-| **Layout** | `st.columns()` — Profil + Metriken nebeneinander |
-| **Navigation** | `st.tabs()` — EKG · Aktivitäten · GPS |
-| **Auth** | Login-Screen · Logout in Sidebar |
-| **Allgemein** | Wide-Layout · Favicon · Plotly-Theme |
-
----
 
 <!-- _class: lead -->
 
