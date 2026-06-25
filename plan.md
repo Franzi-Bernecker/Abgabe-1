@@ -24,7 +24,8 @@ Ein Kardiologe betreut mehrere Patienten. Für jeden Patienten gibt es verschied
 - Alle **Pflicht-Features** der Aufgabe passen natürlich in dieses Modell rein
 - Die **Extra-Features** (SQLite, GPX-Karte, HRV, Anomalieerkennung) bekommen einen echten Use-Case
 - Beim **Pitch** haben wir eine klare Story: "Wir bauen eine Cardiology-Platform"
-- Das Ganze ist **nicht overengineered** — wir simulieren die Rollen über einen einfachen Sidebar-Switcher (kein echtes Auth nötig für ein Uni-Projekt)
+- **Authentifizierung mit Login/Logout:** Jeder Nutzer meldet sich an und sieht automatisch die passende Rolle (Arzt oder Patient). Passwörter werden gehasht (SHA-256 + Salt) in SQLite gespeichert
+- **Live-EKG-Monitor:** EKG-Signal scrollt wie auf einem Krankenhausmonitor — macht die App beim Pitch lebendig und medizinisch authentisch
 
 ---
 
@@ -33,24 +34,21 @@ Ein Kardiologe betreut mehrere Patienten. Für jeden Patienten gibt es verschied
 ```
 CardioConnect/
 ├── src/
-│   ├── main.py              # Streamlit Entry-Point, Routing
+│   ├── main.py              # Streamlit Entry-Point, Login, Routing
+│   ├── database.py          # SQLite Datenbank-Layer + Auth
+│   ├── auth.py              # Auth-Logik (optional ausgelagert)
 │   ├── person.py            # Person/Patient Klasse
-│   ├── ekgdata.py           # EKG-Analyse Klasse
-│   ├── activity.py          # NEU: Trainings-Aktivitäten Klasse
-│   ├── gpxdata.py           # NEU: GPX-Track Klasse
-│   ├── database.py          # NEU: SQLite Datenbank-Layer
-│   └── pages/               # NEU: Streamlit Multi-Page Struktur
-│       ├── patient_view.py  # Patienten-Ansicht
-│       ├── doctor_view.py   # Arzt-Ansicht (Admin)
-│       └── upload.py        # Upload-Formulare (EKG, Aktivität, GPX)
+│   ├── ekgdata.py           # EKG-Analyse + Live-Monitor
+│   ├── activity.py          # Trainings-Aktivitäten Klasse (geplant)
+│   └── gpxdata.py           # GPX-Track Klasse (geplant)
 ├── data/                    # Lowercase! (Linux-kompatibel)
-│   ├── cardioconnect.db     # NEU: SQLite Datenbank
-│   ├── ekg_data/            # EKG-Rohdaten (.txt)
+│   ├── cardioconnect.db     # SQLite Datenbank (persons, ekg_tests, users, …)
+│   ├── ekg_data/            # EKG-Rohdaten (.csv / .parquet)
 │   ├── activities/          # Trainings-CSVs
-│   ├── gpx_data/            # NEU: GPX-Tracks
+│   ├── gpx_data/            # GPX-Tracks
 │   └── pictures/            # Profilbilder
 ├── pyproject.toml
-├── requirements.txt         # NEU: Für Streamlit Cloud Deployment
+├── requirements.txt         # Für Streamlit Cloud Deployment
 └── README.md
 ```
 
@@ -183,6 +181,16 @@ CREATE TABLE activities (
     result_link TEXT NOT NULL,
     FOREIGN KEY (person_id) REFERENCES persons(id)
 );
+
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'patient',  -- 'doctor' | 'patient'
+    person_id INTEGER,
+    FOREIGN KEY (person_id) REFERENCES persons(id)
+);
 ```
 
 **Aufwand:** ~2h
@@ -257,6 +265,36 @@ CREATE TABLE activities (
 
 **Aufwand:** ~1.5h
 
+#### G. Live-EKG-Monitor-Simulation (EIGENES EXTRA) ✅ MACHEN
+**Warum im CardioConnect-Kontext:**
+- Wirkt wie ein echter Krankenhausmonitor — stark für Demo und Pitch
+- Zeigt, dass EKG-Daten „leben“, nicht nur statisch sind
+- Verbindet Peak-Detection mit Echtzeit-Feedback (BPM-Anzeige pulsiert mit)
+
+**Umsetzung:**
+- EKG-Signal als scrollendes Fenster (z.B. letzte 5–10 Sekunden)
+- Plotly-Animation oder Streamlit `st.empty()` + Loop mit `time.sleep()`
+- Monitor-Look: grüne Signallinie auf dunklem Hintergrund
+- BPM-Zähler aktualisiert sich live mit erkannten Peaks
+- Optional: Play/Pause, Geschwindigkeit (1× / 2×)
+
+**Aufwand:** ~1.5–2h
+
+#### H. Authentifizierung (EIGENES EXTRA) ✅ IMPLEMENTIERT
+**Warum im CardioConnect-Kontext:**
+- Realistischer als ein manueller Rollen-Switcher — Patienten sehen wirklich nur eigene Daten
+- Arzt-Account ist von Patienten-Accounts getrennt
+- Demo-Accounts für den Pitch ohne manuelles Umschalten
+
+**Umsetzung:**
+- Login-Screen mit Benutzername + Passwort
+- `users`-Tabelle in SQLite mit gehashten Passwörtern (SHA-256 + Salt)
+- Streamlit `session_state` für eingeloggten User
+- Rollenbasiertes Routing: `role=doctor` → Arzt-Dashboard, `role=patient` → nur eigenes Profil
+- Demo-Accounts: `arzt`/`arzt123`, `julian`/`julian123`, `yannic`/`yannic123`, `yunus`/`yunus123`
+
+**Aufwand:** ~1.5h (bereits umgesetzt)
+
 ---
 
 ### NICHT machen (und warum)
@@ -264,38 +302,53 @@ CREATE TABLE activities (
 | Feature | Warum nicht |
 |---------|------------|
 | .fit-Dateien einlesen | Braucht `fitparse` Lib, proprietäres Garmin-Format, GPX ist einfacher und zeigt dasselbe |
-| Echtes Auth-System | Overengineered für Uni-Projekt, Rollen-Switcher reicht |
+| OAuth / JWT / Multi-Factor | Für Uni-Projekt zu komplex; einfaches Session-Login reicht |
 | Krankenkassen-Integration | Moralisch fragwürdig und weit außerhalb des Scopes |
 
 ---
 
-## Rollen-System (simpel aber effektiv)
+## Authentifizierung & Rollen
 
-Kein echtes Login nötig. Stattdessen:
+Login-Screen beim App-Start — kein manueller Rollen-Switcher mehr.
 
 ```
-Sidebar:
-┌─────────────────────┐
-│ 🔄 Rolle wählen:    │
-│ ○ Arzt (Admin)      │
-│ ○ Patient            │
-│                     │
-│ [Wenn Patient:]     │
-│ Patient auswählen:  │
-│ ▼ Huber, Julian     │
-└─────────────────────┘
+Login-Screen:
+┌─────────────────────────┐
+│  CardioConnect          │
+│  Benutzername: [____]   │
+│  Passwort:     [____]   │
+│  [ Einloggen ]          │
+└─────────────────────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+ role=doctor  role=patient
+    │         │
+    ▼         ▼
+ Arzt-      Meine Daten
+ Dashboard  (person_id aus DB)
+
+Sidebar (eingeloggt):
+┌─────────────────────────┐
+│ 👤 arzt (Arzt)          │
+│ [ Ausloggen ]           │
+│                         │
+│ [Nur Arzt:]             │
+│ Patient auswählen:      │
+│ ▼ Huber, Julian         │
+└─────────────────────────┘
 ```
 
-**Arzt sieht:**
+**Arzt sieht (nach Login als `arzt`):**
 - Alle Patienten in einer Übersicht
 - Patient auswählen → alle Daten (EKG, Aktivitäten, GPX)
 - Patienten hinzufügen / editieren
 - EKG-Tests hochladen
-- Anomalie-Report
+- Live-EKG-Monitor + Anomalie-Report
 
-**Patient sieht:**
-- Nur eigenes Profil + eigene Daten
-- Eigene EKG-Auswertungen
+**Patient sieht (nach Login als `julian`, `yannic`, `yunus`):**
+- Nur eigenes Profil + eigene Daten (verknüpft über `person_id`)
+- Eigene EKG-Auswertungen inkl. Live-Monitor
 - Eigene Aktivitäten hochladen (CSV, GPX)
 - Kein Zugriff auf andere Patienten, kein Editieren von Stammdaten
 
@@ -303,33 +356,34 @@ Sidebar:
 
 ## Implementierungs-Reihenfolge
 
-### Phase 1: Foundation (vor dem Pitch morgen, ~2h)
+### Phase 1: Foundation ✅ (größtenteils erledigt)
 > Ziel: Genug fertig haben um das Konzept live zu zeigen
 
 1. **Pfade fixen** (`Data/` → `data/`) — 10 min
-2. **`database.py`** erstellen — SQLite Schema + Migration von JSON — 1h
-3. **`person.py`** refactoren auf SQLite — 30 min
-4. **Basis-UI aufräumen** — Geburtsjahr anzeigen, Testdatum + Dauer — 20 min
+2. **`database.py`** erstellen — SQLite Schema + Migration von JSON — 1h ✅
+3. **`person.py`** refactoren auf SQLite — 30 min ✅
+4. **Auth-System** — Login, `users`-Tabelle, Demo-Accounts — 1.5h ✅
+5. **Basis-UI aufräumen** — Geburtsjahr anzeigen, Testdatum + Dauer — 20 min
 
 ### Phase 2: Kern-Features (~4h)
-5. **`ekgdata.py` verbessern** — Caching, Downsampling, robustere Peaks — 1h
-6. **Zeitbereich-Auswahl** — Plotly Range Slider — 20 min
-7. **Gleitender HR-Durchschnitt** — Rolling Average Plot — 30 min
-8. **HRV-Berechnung** — SDNN, RMSSD als Metriken — 45 min
-9. **Personen hinzufügen + editieren** — Formulare + DB-Writes — 1.5h
+6. **`ekgdata.py` verbessern** — Caching, Downsampling, robustere Peaks — 1h (teilweise ✅)
+7. **Live-EKG-Monitor** — scrollende Kurve, Monitor-Design, Live-BPM — 1.5–2h
+8. **Zeitbereich-Auswahl** — Plotly Range Slider — 20 min (teilweise ✅)
+9. **Gleitender HR-Durchschnitt** — Rolling Average Plot — 30 min
+10. **HRV-Berechnung** — SDNN, RMSSD als Metriken — 45 min
+11. **Personen hinzufügen + editieren** — Formulare + DB-Writes — 1.5h
 
 ### Phase 3: Extras (~4h)
-10. **Anomalieerkennung** — Irreguläre Intervalle markieren — 2h
-11. **`activity.py`** — Activity-CSV Klasse + Plots — 1h
-12. **`gpxdata.py`** — GPX Parser + Folium-Karte — 1.5h
-13. **GPX-Testdaten** besorgen und einbinden — 30 min
+12. **Anomalieerkennung** — Irreguläre Intervalle markieren — 2h
+13. **`activity.py`** — Activity-CSV Klasse + Plots — 1h
+14. **`gpxdata.py`** — GPX Parser + Folium-Karte — 1.5h
+15. **GPX-Testdaten** besorgen und einbinden — 30 min
 
 ### Phase 4: Polish & Deploy (~2h)
-14. **Rollen-System** — Sidebar Switcher (Arzt/Patient) — 45 min
-15. **UI-Design** — Farben, Layout, Tabs, Wide-Mode — 45 min
-16. **Docstrings** überall — 30 min
-17. **Deployment** — requirements.txt + Streamlit Cloud — 30 min
-18. **README** aktualisieren — 15 min
+16. **UI-Design** — Farben, Layout, Tabs, Wide-Mode, Monitor-Theme — 45 min
+17. **Docstrings** überall — 30 min
+18. **Deployment** — requirements.txt + Streamlit Cloud — 30 min
+19. **README** aktualisieren — 15 min
 
 ---
 
@@ -356,18 +410,21 @@ Sidebar:
 | **Extra** | Anomalieerkennung | 6 |
 | **Extra** | GPX-Karte | 4 |
 | **Extra** | Activity-Daten (eigenes) | 2-4 |
-| **Extra gesamt** | | **22-24** |
+| **Extra** | Live-EKG-Monitor (eigenes) | 2-4 |
+| **Extra** | Authentifizierung (eigenes) | 2-4 |
+| **Extra gesamt** | | **26-32** |
 | | | |
-| **TOTAL** | | **58-60 / 60** |
+| **TOTAL** | | **62-68 / 60** (Extra-Punkte über Maximum) |
 
 ---
 
 
 ### Live zeigen
-- App starten, als Arzt einloggen
+- App starten → Login als Arzt (`arzt` / `arzt123`)
 - Patient auswählen, EKG ansehen
+- **Live-EKG-Monitor:** scrollende Kurve wie am Krankenbett, BPM pulsiert mit
 - Reinzoomen, Anomalien zeigen
-- Auf Patient-Ansicht wechseln
+- Ausloggen → als Patient einloggen (`julian` / `julian123`) — nur eigene Daten sichtbar
 - GPX-Route auf Karte zeigen
 
 ### Zeitplan argumentieren
