@@ -253,6 +253,19 @@ def show_ekg_analyse(ekg, person=None):
                         st.rerun()
 
     st.divider()
+    avg_hr = ekg.get_average_hr()
+    col_hr, col_peaks, col_max = st.columns([1, 1, 1])
+    with col_hr:
+        st.metric("HR (gesamt)", f"{avg_hr} bpm")
+    with col_peaks:
+        st.metric("Herzschläge (gesamt)", str(len(ekg.peaks or [])))
+    with col_max:
+        if person is not None:
+            st.metric("Max. HR (220 - Alter)", f"{person.calc_max_heart_rate()} bpm")
+        else:
+            st.metric("Max. HR (220 - Alter)", "-")
+
+    st.caption(f"Aufnahmedauer: {total_s:.1f} s ({total_s/60:.1f} min) | Abtastrate: {ekg.SAMPLE_RATE} Hz")
 
     st.markdown("##### EKG-Signal")
 
@@ -573,13 +586,22 @@ def show_data_for_person(person):
         return t.get("type") or "EKG-Test"
 
     if len(person.ekg_tests) == 1:
-        test_id = person.ekg_tests[0]["id"]
+        selected_test = person.ekg_tests[0]
+        test_id = selected_test["id"]
         with tab_analyse:
+            st.markdown(f"**{_infer_test_type(selected_test)} — {selected_test.get('date')}**")
             ekg = db.find_ekg_by_id(test_id, person.id)
             if ekg is None:
                 st.error("EKG-Daten konnten nicht geladen werden.")
             else:
                 show_ekg_analyse(ekg, person=person)
+                show_ekg_analyse(ekg, person)
+        with tab_monitor:
+            ekg_mon = db.find_ekg_by_id(test_id, person.id)
+            if ekg_mon is None:
+                st.error("EKG-Daten konnten nicht geladen werden.")
+            else:
+                show_ekg_monitor(ekg_mon)
     else:
         test_options = {}
         for t in person.ekg_tests:
@@ -598,6 +620,20 @@ def show_data_for_person(person):
                 st.error("EKG-Daten konnten nicht geladen werden.")
             else:
                 show_ekg_analyse(ekg, person=person)
+                show_ekg_analyse(ekg, person)
+
+        with tab_monitor:
+            selected_test_mon = st.selectbox(
+                "EKG-Test auswählen",
+                options=test_options.keys(),
+                key=f"ekg_select_monitor_{person.id}",
+            )
+            test_id_mon = test_options[selected_test_mon]
+            ekg_mon = db.find_ekg_by_id(test_id_mon, person.id)
+            if ekg_mon is None:
+                st.error("EKG-Daten konnten nicht geladen werden.")
+            else:
+                show_ekg_monitor(ekg_mon)
 
 
 # ── Arzt-Dashboard ──
