@@ -16,10 +16,22 @@ class Person:
         self.gender = person_dict.get("gender", "male")
 
     def calc_age(self):
-        return date.today().year - self.date_of_birth
+        try:
+            birth_year = self.get_birth_year()
+            return date.today().year - birth_year
+        except Exception:
+            return 0
 
     def calc_max_heart_rate(self):
         return 220 - self.calc_age()
 
     def get_full_name(self):
         return f"{self.lastname}, {self.firstname}"
+    
+    def get_birth_year(self):
+        if isinstance(self.date_of_birth, int):
+            return self.date_of_birth
+        try:
+            return date.fromisoformat(self.date_of_birth).year
+        except Exception:
+            return int(str(self.date_of_birth).split("-")[0])
