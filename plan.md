@@ -63,12 +63,14 @@ CardioConnect/
 - Arzt sieht: Profil-Übersicht aller Patienten
 - Patient sieht: Eigenes Profil oben auf der Seite
 - **TODO:** Geburtsjahr explizit anzeigen (nicht nur Alter)
+-Franzi
 
 #### 2. Auswahlmöglichkeit für Tests (4 Pkt)
 **Im Kontext:** Ein Patient kann mehrere EKG-Tests haben (z.B. Ruhe-EKG am 10.2., Belastungs-EKG am 11.3.)
 - Dropdown mit Datum + Typ (Ruhe/Belastung) als Label
 - Wenn nur 1 Test: kein Dropdown nötig, direkt anzeigen
 - **TODO:** Schönere Labels, automatische Selektion bei nur 1 Test
+-Franzi 
 
 #### 3. Testdatum und Gesamtlänge in Minuten (4 Pkt)
 **Im Kontext:** Arzt will wissen: Wann war der Test? Wie lange wurde aufgezeichnet?
@@ -76,6 +78,7 @@ CardioConnect/
 - Dauer berechnen: `(max_time_ms - min_time_ms) / 60000`
 - Als Metriken-Kachel: "5.1 Minuten | 10. Februar 2023"
 - **TODO:** Implementieren
+-Laurenz 
 
 #### 4. EKG-Daten sinnvoll verarbeiten / Ladezeiten (2 Pkt)
 **Im Kontext:** EKG-Dateien sind groß (300k+ Zeilen). Kein Arzt will 10 Sekunden warten.
@@ -83,6 +86,7 @@ CardioConnect/
 - Downsampling für Plot-Darstellung (z.B. jeden 5. Punkt für Übersicht, volle Auflösung nur im Zoom)
 - Peak-Detection Ergebnisse cachen
 - **TODO:** Caching implementieren, Downsampling für Plot
+-Laurenz 
 
 #### 5. Herzrate über gesamten Zeitraum (2 Pkt)
 **Im Kontext:** Der Arzt will die durchschnittliche Herzfrequenz sehen
@@ -90,6 +94,7 @@ CardioConnect/
 - Robuster machen: Ausreißer-Peaks filtern
 - Vergleich mit theoretischer Max-HR anzeigen (220 - Alter)
 - **TODO:** Robustere Berechnung, Vergleich mit Max-HR
+-Franzi
 
 #### 6. Zeitbereich für Plots auswählen (2 Pkt)
 **Im Kontext:** Ein 5-Minuten-EKG hat ~300k Datenpunkte. Der Arzt will reinzoomen können.
@@ -97,6 +102,7 @@ CardioConnect/
 - Zusätzlich: Streamlit Slider für Start/End-Zeit in Sekunden
 - Wenn gezoomt: HR nur für den gewählten Bereich neu berechnen
 - **TODO:** Range Slider in Plotly aktivieren + Streamlit Slider
+-Laurenz
 
 #### 7. Code-Stil, OOP, Modularität (4 Pkt)
 **Im Kontext:** Saubere Architektur für ein "echtes" Produkt
@@ -106,11 +112,13 @@ CardioConnect/
 - Snake_case überall, keine Legacy-Überreste
 - `data/` statt `Data/` (Linux-Kompatibilität!)
 - **TODO:** Refactoring bei der Implementierung
+-Laurenz 
 
 #### 8. Docstrings (2 Pkt)
 **Im Kontext:** Professioneller Code hat Docstrings
 - Google-Style Docstrings für alle Klassen, Methoden, Funktionen
 - **TODO:** Beim Implementieren direkt mitschreiben
+-Franzi
 
 #### 9. Design optimiert & ansprechend (2 Pkt)
 **Im Kontext:** CardioConnect soll wie eine echte medizinische App aussehen
@@ -120,6 +128,7 @@ CardioConnect/
 - Page Config: Wide-Layout, eigenes Favicon, Titel "CardioConnect"
 - Konsistente Plotly-Themes (Farben passend zum App-Design)
 - **TODO:** UI-Design als letzten Schritt polieren
+-Franzi
 
 #### 10. Deployment (4 Pkt)
 **Im Kontext:** App muss online erreichbar sein
@@ -127,6 +136,7 @@ CardioConnect/
 - `requirements.txt` aus PDM exportieren
 - Pfade müssen Linux-kompatibel sein
 - **TODO:** Am Ende deployen, vorher lokal testen
+-Laurenz 
 
 #### 11. Neue Personen und Tests hinzufügen (4 Pkt)
 **Im Kontext:** 
@@ -135,6 +145,7 @@ CardioConnect/
 - **Patient:** Neue Aktivität/GPX hochladen
 - Formular mit Validierung
 - **TODO:** Upload-Seite bauen
+-Laurenz
 
 #### 12. Bestehende Personen editieren (4 Pkt)
 **Im Kontext:**
@@ -142,6 +153,7 @@ CardioConnect/
 - Edit-Button am Profil → Formular mit vorausgefüllten Feldern
 - Änderungen in DB speichern
 - **TODO:** Edit-Modus implementieren
+-Laurenz
 
 ---
 
@@ -153,6 +165,7 @@ CardioConnect/
 - SQLite macht CRUD-Operationen (Create/Read/Update/Delete) sauber
 - Relationen sind natürlich: Patient → hat viele EKG-Tests, hat viele Aktivitäten
 - Migration: Bestehendes JSON → SQLite Converter-Script
+-Laurenz
 
 **Datenbankschema:**
 ```sql
@@ -194,17 +207,20 @@ CREATE TABLE users (
 ```
 
 **Aufwand:** ~2h
+-Laurenz
 
 #### B. Gleitender Durchschnitt der Herzrate (2 Pkt) ✅ MACHEN
 **Warum im CardioConnect-Kontext:**
 - Ein einzelner HR-Wert sagt wenig — der Verlauf zeigt dem Arzt das Bild
 - Rolling Average glättet Rauschen, macht Trends sichtbar
 - Besonders relevant beim Belastungs-EKG: HR steigt an → Plateau → Erholung
+-Laurenz
 
 **Umsetzung:**
 - RR-Intervalle (Peak-zu-Peak) → in BPM umrechnen → `rolling(window=10).mean()`
 - Als zweiten Plot oder Overlay im EKG-Chart
 - Fensterbreite per Slider einstellbar
+-Laurenz
 
 **Aufwand:** ~30 min
 
@@ -221,6 +237,7 @@ CREATE TABLE users (
 - Optional: Poincaré-Plot (RR(n) vs RR(n+1)) — sieht beeindruckend aus
 
 **Aufwand:** ~45 min
+-Franzi
 
 #### D. Anomalieerkennung in EKG-Daten (6 Pkt) ✅ MACHEN
 **Warum im CardioConnect-Kontext:**
@@ -234,6 +251,7 @@ CREATE TABLE users (
 4. **Visuell:** Rote Bereiche im EKG-Plot, Summary mit Anzahl der Anomalien
 
 **Aufwand:** ~2-3h
+-Laurenz
 
 #### E. GPX-Kartendarstellung (4 Pkt) ✅ MACHEN
 **Warum im CardioConnect-Kontext:**
@@ -255,6 +273,7 @@ CREATE TABLE users (
 - 2-3 GPX-Dateien reichen für die Demo
 
 **Aufwand:** ~2h
+-Laurenz 
 
 #### F. Aktivitäts-Daten nutzen (EIGENES EXTRA) ✅ MACHEN
 **Warum:**
@@ -264,6 +283,7 @@ CREATE TABLE users (
 - Trainings-Zusammenfassung: Dauer, Distanz, Avg HR, Max HR
 
 **Aufwand:** ~1.5h
+-Franzi
 
 #### G. Live-EKG-Monitor-Simulation (EIGENES EXTRA) ✅ MACHEN
 **Warum im CardioConnect-Kontext:**
@@ -279,6 +299,7 @@ CREATE TABLE users (
 - Optional: Play/Pause, Geschwindigkeit (1× / 2×)
 
 **Aufwand:** ~1.5–2h
+-Laurenz
 
 #### H. Authentifizierung (EIGENES EXTRA) ✅ IMPLEMENTIERT
 **Warum im CardioConnect-Kontext:**
@@ -294,7 +315,7 @@ CREATE TABLE users (
 - Demo-Accounts: `arzt`/`arzt123`, `julian`/`julian123`, `yannic`/`yannic123`, `yunus`/`yunus123`
 
 **Aufwand:** ~1.5h (bereits umgesetzt)
-
+-Laurenz
 ---
 
 ### NICHT machen (und warum)
@@ -304,53 +325,6 @@ CREATE TABLE users (
 | .fit-Dateien einlesen | Braucht `fitparse` Lib, proprietäres Garmin-Format, GPX ist einfacher und zeigt dasselbe |
 | OAuth / JWT / Multi-Factor | Für Uni-Projekt zu komplex; einfaches Session-Login reicht |
 | Krankenkassen-Integration | Moralisch fragwürdig und weit außerhalb des Scopes |
-
----
-
-## Authentifizierung & Rollen
-
-Login-Screen beim App-Start — kein manueller Rollen-Switcher mehr.
-
-```
-Login-Screen:
-┌─────────────────────────┐
-│  CardioConnect          │
-│  Benutzername: [____]   │
-│  Passwort:     [____]   │
-│  [ Einloggen ]          │
-└─────────────────────────┘
-         │
-    ┌────┴────┐
-    ▼         ▼
- role=doctor  role=patient
-    │         │
-    ▼         ▼
- Arzt-      Meine Daten
- Dashboard  (person_id aus DB)
-
-Sidebar (eingeloggt):
-┌─────────────────────────┐
-│ 👤 arzt (Arzt)          │
-│ [ Ausloggen ]           │
-│                         │
-│ [Nur Arzt:]             │
-│ Patient auswählen:      │
-│ ▼ Huber, Julian         │
-└─────────────────────────┘
-```
-
-**Arzt sieht (nach Login als `arzt`):**
-- Alle Patienten in einer Übersicht
-- Patient auswählen → alle Daten (EKG, Aktivitäten, GPX)
-- Patienten hinzufügen / editieren
-- EKG-Tests hochladen
-- Live-EKG-Monitor + Anomalie-Report
-
-**Patient sieht (nach Login als `julian`, `yannic`, `yunus`):**
-- Nur eigenes Profil + eigene Daten (verknüpft über `person_id`)
-- Eigene EKG-Auswertungen inkl. Live-Monitor
-- Eigene Aktivitäten hochladen (CSV, GPX)
-- Kein Zugriff auf andere Patienten, kein Editieren von Stammdaten
 
 ---
 
