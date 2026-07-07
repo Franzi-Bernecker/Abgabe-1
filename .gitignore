@@ -10,5 +10,6 @@ data/**/*.parquet
 data/cardioconnect.db
 .DS_Store
 .python-version
-.CLAUDE.md
+CLAUDE.md
+.claude/
 
