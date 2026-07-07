@@ -1,27 +1,115 @@
-# CardioConnect
+# 🫀 CardioConnect
 
-Kardiologie-Plattform für Ärzte und Patienten — ein Streamlit-Projekt für den
-Kurs Software Engineering.
+**Webbasierte Kardiologie-Plattform für Ärzte und Patienten** — EKG-Analyse im
+Holter-Stil, GPX-Trainingsauswertung und Patientenverwaltung in einer
+Streamlit-App.
 
-**Funktionen**
+![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit&logoColor=white)
+![PDM](https://img.shields.io/badge/PDM-managed-blueviolet)
+![Tests](https://img.shields.io/badge/Tests-pytest-green?logo=pytest&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-- 🔐 Login mit zwei Rollen: **Arzt** (alle Patienten, Verwaltung, Uploads) und
-  **Patient** (nur eigene Daten)
-- 📈 **EKG-Analyse**: R-Zacken-Erkennung (scipy), Herzfrequenz & HRV
-  (SDNN/RMSSD), Anomalieerkennung (Aussetzer, irreguläre RR-Intervalle,
-  Tachy-/Bradykardie), interaktiver Plotly-Plot mit Range-Slider,
-  Live-EKG-Monitor mit Abspielfunktion
-- 🏃 **Aktivitäten**: GPX-Tracks auf Karte (folium), Höhenprofil,
-  Herzfrequenz-Zonen, Distanz, Pace, Höhenmeter
-- ⚙️ **Verwaltung**: Patienten anlegen/bearbeiten/löschen, Upload von
-  EKG-Dateien, GPX-Tracks und Profilbildern mit Validierung
+> Entstanden als Abschlussprojekt im Kurs **Software Engineering**.
+> UI-Sprache ist Deutsch, Code und Docstrings sind Englisch.
 
-## Setup
+---
 
-Voraussetzungen: Python 3.13 und [PDM](https://pdm-project.org/).
+## Inhaltsverzeichnis
+
+- [Überblick](#überblick)
+- [Features](#features)
+- [Tech-Stack](#tech-stack)
+- [Installation & Start](#installation--start)
+- [Konfiguration](#konfiguration)
+- [Benutzung](#benutzung)
+- [Projektstruktur](#projektstruktur)
+- [Architektur](#architektur)
+- [EKG-Analyse-Pipeline](#ekg-analyse-pipeline)
+- [Datenformate](#datenformate)
+- [Tests](#tests)
+- [Deployment](#deployment)
+- [Design-Entscheidungen](#design-entscheidungen)
+- [Lizenz](#lizenz)
+
+---
+
+## Überblick
+
+CardioConnect bündelt zwei Perspektiven in einer Anwendung:
+
+- **Ärztinnen und Ärzte** sehen alle Patientenakten, analysieren
+  Langzeit-EKGs, werten Trainingsaktivitäten aus und verwalten Stammdaten
+  sowie Datei-Uploads.
+- **Patientinnen und Patienten** haben schreibgeschützten Zugriff auf die
+  eigene Akte und können eigene GPX-Aktivitäten hochladen.
+
+Beim ersten Start legt die App automatisch eine SQLite-Datenbank an und
+befüllt sie mit sechs Demo-Patienten inklusive echter EKG-Aufnahmen
+(MIT-BIH-Format) und GPX-Tracks — die Anwendung ist damit sofort
+demonstrierbar, ohne manuelle Datenpflege.
+
+## Features
+
+### 🔐 Authentifizierung & Rollen
+- Login mit Benutzername/Passwort, Passwörter als **PBKDF2-SHA256**-Hashes
+  (600.000 Iterationen, Salt pro Benutzer, konstante Vergleichszeit)
+- Zwei Rollen mit serverseitiger Prüfung: `doctor` und `patient`
+- Rollenbasierte Navigation — Patienten sehen Verwaltungsseiten nicht einmal
+
+### 📈 EKG-Analyse (Holter-Stil)
+- **R-Zacken-Erkennung** über Prominenz + physiologische Refraktärzeit
+  (robust gegen Baseline-Drift)
+- **Herzfrequenz-Kennzahlen**: Ø/Min/Max-HR, Artefaktfilterung auf
+  plausible Werte (35–210 bpm)
+- **HRV-Analyse**: SDNN, RMSSD, RR-Tachogramm, Poincaré-Plot
+- **Anomalie-Erkennung als Episoden**: Pausen (> 2 s), ektope Runs,
+  anhaltende Tachy-/Bradykardie (≥ 10 s auf geglätteter HR) — statt
+  tausender Einzel-Schlag-Meldungen
+- **Automatischer Befund** in verständlichem Deutsch (explizit als
+  Hinweis, nicht als Diagnose gekennzeichnet)
+- **Interaktiver Signal-Plot** (Plotly, Range-Slider, Sprung zu Episoden)
+  und **Live-Monitor** mit Abspielfunktion, Geschwindigkeitswahl und
+  Seekbar im Stil eines Krankenhausmonitors
+
+### 🏃 Trainings-Aktivitäten (GPX)
+- Routen-Karte (folium, dunkle Kacheln, Start-/Ziel-Marker, Auto-Zoom)
+- Höhenprofil, Distanz, Dauer, Pace bzw. Geschwindigkeit, Höhenmeter
+- Herzfrequenz-Verlauf und **Trainingszonen** (Z1–Z5, basierend auf der
+  individuellen Max-HR des Patienten)
+- Regelbasierte Trainings-Tipps (Intensitätseinordnung, Erholungshinweise)
+
+### ⚙️ Verwaltung (nur Arzt)
+- Patienten anlegen, bearbeiten, löschen (mit Bestätigungsdialog;
+  abhängige Daten werden per FK-Cascade mitgelöscht)
+- Datei-Uploads mit **inhaltlicher Validierung** (nicht nur Dateiendung):
+  EKG-CSV/TXT, GPX-Tracks, Profilbilder
+- Profilbilder werden automatisch quadratisch zugeschnitten
+
+## Tech-Stack
+
+| Bereich | Technologie |
+|---|---|
+| Web-Framework | [Streamlit](https://streamlit.io/) |
+| Datenhaltung | SQLite (Standardbibliothek `sqlite3`) |
+| Signalverarbeitung | NumPy, SciPy (`find_peaks`), pandas |
+| Visualisierung | Plotly, folium + streamlit-folium, HTML5-Canvas |
+| GPX-Parsing | gpxpy |
+| Bildverarbeitung | Pillow |
+| Performance | PyArrow / Parquet-Cache, `st.cache_data` |
+| Dependency-Management | [PDM](https://pdm-project.org/) (Python 3.13) |
+| Tests | pytest |
+
+## Installation & Start
+
+**Voraussetzungen:** Python 3.13 und [PDM](https://pdm-project.org/).
 
 ```bash
-# 1. Abhängigkeiten installieren
+# Repository klonen
+git clone <repo-url>
+cd Abgaben
+
+# 1. Abhängigkeiten installieren (erstellt .venv/)
 pdm install
 
 # 2. Secrets anlegen (Demo-Passwörter, optionaler DB-Pfad)
@@ -31,115 +119,202 @@ cp secrets.toml.example .streamlit/secrets.toml
 pdm run streamlit run app.py
 ```
 
-Beim ersten Start wird `data/cardioconnect.db` automatisch angelegt und mit
-sechs Demo-Patienten samt EKG-Daten und GPX-Aktivitäten befüllt.
+Die App läuft anschließend unter `http://localhost:8501`. Beim ersten Start
+wird `data/cardioconnect.db` angelegt und mit Demo-Daten befüllt (sechs
+Patienten, sieben EKG-Aufnahmen, GPX-Aktivitäten, Benutzerkonten).
 
-> **Deployment (Streamlit Community Cloud):** Die Cloud installiert aus
-> `requirements.txt` (per `pdm export` aus dem Lockfile erzeugt). Die Secrets
-> werden dort nicht als Datei abgelegt, sondern im App-Dashboard unter
-> *Settings → Secrets* eingetragen — gleiches TOML-Format wie lokal.
+> Alternativ ohne PDM: `pip install -r requirements.txt` — die Datei wird
+> per `pdm export` aus dem Lockfile erzeugt und ist damit versionsgleich.
 
-## Login
+## Konfiguration
 
-Die Demo-Passwörter werden beim Seeding aus `.streamlit/secrets.toml`
-(Abschnitt `[demo_passwords]`) gelesen und per PBKDF2-SHA256 gehasht.
-Ohne Eintrag gilt der Fallback `<benutzername>123` (z. B. Arzt `arzt` /
-`arzt123`) — für ein öffentliches Deployment daher unbedingt eigene
-Passwörter in den Secrets setzen.
+Alle Secrets liegen in `.streamlit/secrets.toml` (nicht versioniert,
+Template: [`secrets.toml.example`](secrets.toml.example)):
 
-## Tests
+| Abschnitt | Schlüssel | Bedeutung |
+|---|---|---|
+| `[demo_passwords]` | `arzt`, `ruth`, … | Passwörter der Demo-Konten beim ersten Seeding |
+| `[database]` | `path` | Optionaler alternativer DB-Pfad (relativ zum Projekt) |
 
-Unit-Tests decken die reine Fachlogik ab (Personen-Kennzahlen,
-Schlag-Klassifikation, R-Zacken-Erkennung auf synthetischem Signal,
-Upload-Validierung, Passwort-Hashing):
+Ohne Eintrag in `[demo_passwords]` gilt der Fallback
+`<benutzername>123` — **für ein öffentliches Deployment unbedingt eigene
+Passwörter setzen**, bevor die App erreichbar ist.
 
-```bash
-pdm run pytest
-```
+Konstanten (Abtastrate, HR-Grenzwerte, erlaubte Dateiendungen,
+PBKDF2-Iterationen) sind zentral in
+[`cardioconnect/config.py`](cardioconnect/config.py) definiert.
 
-## Architektur
+## Benutzung
+
+| Rolle | Seite | Funktion |
+|---|---|---|
+| Arzt | **Dashboard** | Patient in der Sidebar wählen → vollständige Akte (EKG + Aktivitäten) |
+| Arzt | **Verwaltung** | Patienten-CRUD, EKG-/GPX-/Bild-Uploads |
+| Patient | **Meine Daten** | Eigene Akte einsehen, eigene GPX-Aktivitäten hochladen/entfernen |
+
+Der Login erfolgt mit den beim Seeding angelegten Konten: ein Arzt-Konto
+(`arzt`) und je ein Patienten-Konto pro Demo-Patient (Vorname,
+kleingeschrieben, z. B. `ruth`). Die zugehörigen Passwörter stammen aus den
+Secrets (siehe [Konfiguration](#konfiguration)).
+
+## Projektstruktur
 
 ```
 app.py                      # Einstiegspunkt (streamlit run app.py)
 cardioconnect/
 ├── config.py               # Pfade, Konstanten, Secrets-Zugriff
-├── auth.py                 # Passwort-Hashing + Login-Session
-├── db.py                   # SQLite-Verbindung + Schema
+├── auth.py                 # PBKDF2-Hashing + Login-Session
+├── db.py                   # SQLite-Verbindung + Schema (FK-Cascades)
 ├── seed.py                 # Demo-Daten beim ersten Start
-├── models/                 # Domänenlogik (Person, EKG-Analyse, GPX-Track)
+├── models/                 # Domänenlogik — kein Streamlit-UI, kein SQL
+│   ├── person.py           #   Alter, BMI, Max-HR, Anzeige-Formatierung
+│   ├── ekg.py              #   Peak-Detection, HRV, Episoden, Auto-Befund
+│   └── track.py            #   GPX-Statistiken, HR-Zonen, Trainings-Tipps
 ├── repositories/           # Datenzugriff (Repository Pattern) + Uploads
+│   ├── persons.py          #   CRUD + Profilbild-Upload
+│   ├── ekg_tests.py        #   CRUD + EKG-Upload (Validierung, Normalisierung)
+│   ├── activities.py       #   CRUD + GPX-Upload (Metadaten-Extraktion)
+│   └── users.py            #   Benutzerkonten
 └── ui/
     ├── app.py              # Login-Gate + rollenbasierte Navigation
     ├── pages/              # Login, Dashboard, Verwaltung, Meine Daten
-    └── components/         # Patientenakte, EKG-Analyse, Player, GPX-Karte
+    └── components/         # Patientenakte, EKG-Analyse, Live-Player, GPX-Karte
 tests/                      # Unit-Tests (pytest)
 data/
-├── cardioconnect.db        # SQLite (wird generiert, nicht versioniert)
+├── cardioconnect.db        # SQLite — wird generiert, nicht versioniert
 ├── ekg_data/               # EKG-Rohdaten (MIT-BIH, 360 Hz, CSV)
 ├── gpx/                    # GPX-Tracks (Strava-Export)
 └── pictures/               # Profilbilder
 ```
 
-Die Abhängigkeiten zeigen strikt von oben nach unten: **UI → Models →
-Repositories → DB**. Eine UI-Komponente ruft nie selbst SQL auf, und ein
-Model weiß nichts von Streamlit-Widgets. Dadurch bleibt die Fachlogik ohne
-laufende App testbar (siehe `tests/`).
+## Architektur
+
+Die Anwendung ist in vier Schichten organisiert; **Abhängigkeiten zeigen
+ausschließlich nach unten**:
+
+```
+┌─────────────────────────────────────────────┐
+│  UI (Streamlit)                             │  Seiten & Komponenten,
+│  pages/ · components/                       │  Session-State, Widgets
+├─────────────────────────────────────────────┤
+│  Models (Domänenlogik)                      │  Dataclasses + Analyse:
+│  Person · EKG · Activity                    │  Alter, HRV, Episoden, …
+├─────────────────────────────────────────────┤
+│  Repositories (Datenzugriff)                │  Parametrisiertes SQL,
+│  persons · ekg_tests · activities · users   │  Upload-Validierung
+├─────────────────────────────────────────────┤
+│  DB / Dateisystem                           │  SQLite (FK ON) + CSV/
+│  db.py · data/                              │  Parquet/GPX/Bilder
+└─────────────────────────────────────────────┘
+```
+
+Konsequenzen dieser Aufteilung:
+
+- **Kein SQL in der UI, kein Streamlit in den Repositories.** Eine
+  UI-Komponente holt sich Rows über ein Repository, baut daraus per
+  `Model.from_row(dict)` ein unveränderliches Domänenobjekt und rendert es.
+- **Die Fachlogik ist ohne laufende App testbar** — genau das nutzen die
+  Unit-Tests in `tests/`.
+- **Modelle sind billig zu konstruieren**: Die teure Signal-Analyse hängt
+  nicht am Objekt, sondern ist modulweit pro Dateipfad gecacht (siehe
+  unten). Ein `EKG`-Objekt neu zu bauen kostet praktisch nichts.
+
+### Datenbank-Schema
+
+Vier Tabellen: `persons`, `ekg_tests`, `activities`, `users`. EKG-Tests,
+Aktivitäten und Benutzerkonten referenzieren Personen per Foreign Key mit
+`ON DELETE CASCADE` — das Löschen eines Patienten räumt alle abhängigen
+Datensätze mit auf. `PRAGMA foreign_keys = ON` wird bei jeder Verbindung
+gesetzt, da SQLite FK-Constraints sonst nicht durchsetzt. Messdaten
+selbst (EKG-Signale, GPX-Tracks, Bilder) liegen als Dateien im
+Dateisystem; die DB speichert nur repo-relative Pfade.
+
+## EKG-Analyse-Pipeline
+
+Eine EKG-Datei durchläuft beim ersten Öffnen folgende Schritte:
+
+1. **Laden & Cachen** — Das CSV (650.000 Messpunkte, 360 Hz) wird einmalig
+   in eine Parquet-Datei konvertiert (spaltenbasiert, deutlich schneller zu
+   lesen); `st.cache_data` hält das Signal zusätzlich im Speicher.
+2. **R-Zacken-Erkennung** — `scipy.signal.find_peaks` mit
+   Prominenz-Schwelle (toleriert Baseline-Wandern) und Mindestabstand
+   (~210 bpm Obergrenze als Refraktärzeit).
+3. **Schlag-Klassifikation** — Jedes RR-Intervall wird gelabelt: Pause
+   (> 2 s), ektop/irregulär (Ausreißer gegenüber Median + MAD — robuste
+   Statistik, damit einzelne Extremwerte die Schwellen nicht verzerren),
+   Tachykardie (> 100 bpm) oder Bradykardie (< 60 bpm).
+4. **Episoden-Gruppierung** — Aufbereitung wie in einem echten
+   Holter-Befund: Pausen einzeln, Ektopien nur als Runs ≥ 2 Schläge
+   (Einzel-Ektopien fließen in die Ektopie-Last-Kennzahl), Tachy-/
+   Bradykardie nur bei ≥ 10 s Dauer auf der geglätteten Herzfrequenz.
+5. **Kennzahlen & Befund** — HR-Statistik, SDNN/RMSSD, Zeit je
+   Frequenzband, Pausen-Zählung, Ektopie-Last und ein automatisch
+   formulierter, nicht-diagnostischer Textbefund.
+
+Die komplette Analyse läuft **genau einmal pro Datei** und wird gecacht —
+jede weitere Interaktion (Zoom, Episodensprung, Player) arbeitet auf dem
+Cache.
+
+## Datenformate
+
+| Daten | Format | Details |
+|---|---|---|
+| EKG | CSV / TXT (MIT-BIH-Export) | 360 Hz, Indexspalte + Signalspalten (`MLII` bevorzugt); TXT mit Tabs wird beim Upload zu CSV normalisiert |
+| Aktivitäten | GPX 1.1 (Strava-Export) | `<type>` (running/cycling/…), 1-s-Trackpunkte mit Elevation, optional HR aus Garmin TrackPointExtension |
+| Bilder | JPG / PNG | werden quadratisch zugeschnitten gespeichert |
+| Datumswerte | ISO `YYYY-MM-DD` in der DB | Anzeige in der UI deutsch als `TT.MM.JJJJ`; ISO hält die SQL-Sortierung trivial |
+| Datei-Pfade | repo-relativ, `/`-Separator | DB bleibt zwischen Windows und Linux portabel |
+
+## Tests
+
+Die Unit-Tests decken die reine Fachlogik ab — ohne laufende App und ohne
+Datenbank:
+
+- `test_person.py` — Altersberechnung (inkl. Randfälle), BMI, Max-HR,
+  `from_row` mit unbekannten Spalten
+- `test_ekg_analysis.py` — Schlag-Klassifikation (Pause, Tachy-/Bradykardie,
+  Ektopie), Run-Gruppierung, R-Zacken-Erkennung auf synthetischem Signal
+- `test_uploads.py` — EKG-CSV-Validierung, TXT-Normalisierung,
+  GPX-Metadaten-Extraktion inkl. Fehlerfälle
+- `test_auth.py` — PBKDF2-Roundtrip, Salt-Verhalten, falsches Passwort
+
+```bash
+pdm run pytest
+```
+
+## Deployment
+
+### Streamlit Community Cloud
+
+1. Repository auf GitHub pushen.
+2. Auf [share.streamlit.io](https://share.streamlit.io) → *New app* →
+   Repo/Branch wählen, Entrypoint `app.py`, Python 3.13.
+3. Die Cloud installiert aus **`requirements.txt`** (per `pdm export` aus
+   dem Lockfile erzeugt — nicht von Hand pflegen).
+4. Secrets im App-Dashboard unter *Settings → Secrets* eintragen — gleiches
+   TOML-Format wie die lokale `secrets.toml`. **Eigene, starke
+   Demo-Passwörter setzen** (sonst greift der erratbare Fallback).
+
+**Hinweis zur Persistenz:** Das Dateisystem der Community Cloud ist
+ephemer — bei jedem Neustart (Redeploy, Inaktivität) werden Datenbank und
+Uploads zurückgesetzt und die App seedet sich neu mit den Demo-Daten. Für
+eine Demo-Anwendung ist dieses Selbst-Zurücksetzen erwünscht; für echten
+Betrieb bräuchte es eine externe Datenbank und einen Objektspeicher.
 
 ## Design-Entscheidungen
 
-**Warum Schichten + Repository Pattern?** In frühen Versionen lagen SQL,
-Analyse und UI-Code in denselben Dateien — jede Änderung an der Oberfläche
-riskierte die Datenlogik. Die Aufteilung macht jede Schicht einzeln
-austauschbar und testbar: Die Repositories kapseln den gesamten
-SQLite-Zugriff (parametrisierte Queries, eine Datei pro Tabelle), die Models
-bauen daraus per `Model.from_row(dict)` unveränderliche Dataclasses mit
-abgeleiteten Kennzahlen (Alter, BMI, HRV, …).
+| Entscheidung | Begründung |
+|---|---|
+| **Schichtenarchitektur + Repository Pattern** | UI, Fachlogik und Datenzugriff unabhängig änder- und testbar; die Vorgängerversion mischte SQL, Analyse und UI in denselben Dateien |
+| **SQLite statt Server-DB** | Kein Setup, eine Datei, in Python eingebaut — für eine Einzel-Instanz-App die richtige Größe; Integrität trotzdem über echte FK-Constraints |
+| **Parquet-Side-Cache + `st.cache_data`** | Streamlit führt das Skript bei jeder Interaktion neu aus; ohne Cache würde jedes Widget-Event 650k CSV-Zeilen neu parsen |
+| **Anomalien als Episoden** | Orientiert an echten Langzeit-EKG-Befunden; verhindert, dass tausende Einzel-Schlag-Meldungen die Auswertung unbrauchbar machen |
+| **Median + MAD statt Mittelwert + σ** | Robuste Statistik: einzelne Artefakt-Intervalle verschieben die Ektopie-Schwelle nicht |
+| **HTML/JS-Canvas für den Live-Monitor** | 60-fps-Wiedergabe ist mit serverseitigen Streamlit-Reruns nicht möglich; der Player animiert vollständig im Browser |
+| **PBKDF2 + `hmac.compare_digest` + Secrets-Datei** | Keine Klartext-Passwörter in Code, DB oder Git; Vergleich in konstanter Zeit gegen Timing-Angriffe |
+| **Inhaltliche Upload-Validierung** | Dateiendungen sind kein Vertrauensbeweis: CSV wird probegeparst, GPX braucht ≥ 2 Trackpunkte, Bilder muss Pillow öffnen können |
+| **ISO-Datum in DB, deutsches Format in UI** | Korrekte Sortierung in SQL ohne Datums-Parsing; Lokalisierung ist reine Darstellungssache |
 
-**Warum SQLite statt „richtiger" Datenbank?** Kein Server-Setup, eine Datei,
-in Python eingebaut — für eine Einzel-Instanz-App genau richtig. Das Schema
-nutzt trotzdem echte Constraints: Foreign Keys mit `ON DELETE CASCADE`
-(Patient löschen ⇒ EKGs, Aktivitäten und Konto verschwinden mit), `UNIQUE`
-auf Benutzername und Personen-Verknüpfung. `PRAGMA foreign_keys = ON` wird
-bei jeder Verbindung gesetzt, weil SQLite FKs sonst ignoriert.
+## Lizenz
 
-**Warum Parquet-Cache für die EKG-Daten?** Eine EKG-Datei hat 650.000
-Messpunkte; das CSV-Parsen dauert spürbar, und Streamlit führt das Skript
-bei *jeder* Interaktion neu aus. Deshalb zwei Cache-Stufen: Beim ersten
-Laden wird das CSV einmalig in eine Parquet-Datei konvertiert
-(spaltenbasiert, ~10× schneller zu lesen), und `st.cache_data` hält das
-Ergebnis zusätzlich im Speicher — gecacht pro Dateipfad, sodass die
-Analyse (Peaks, RR-Intervalle, Episoden) genau einmal pro Datei läuft und
-die Model-Objekte selbst billig konstruierbar bleiben.
-
-**Warum Episoden statt Einzel-Schlägen?** Ein naiver Anomalie-Report würde
-tausende einzelne „auffällige Schläge" listen. Echte Langzeit-EKG-Befunde
-fassen stattdessen zusammen: Pausen (RR > 2 s) einzeln, ektope Schläge nur
-als Runs ≥ 2 (Einzel-Ektopien gehen in die Ektopie-Last-Kennzahl), Tachy-/
-Bradykardie nur, wenn sie auf der geglätteten Herzfrequenz ≥ 10 s anhält.
-Die Klassifikation nutzt robuste Statistik (Median + MAD statt Mittelwert +
-Standardabweichung), damit wenige Ausreißer die Schwellwerte nicht verzerren.
-
-**Warum ein HTML/JS-Canvas-Player für den Live-Monitor?** Streamlit rendert
-serverseitig — für eine flüssige 60-fps-Wiedergabe mit Abspielgeschwindigkeit
-und Seekbar müsste sonst bei jedem Frame ein Rerun laufen. Der Player bekommt
-das Signal einmal als JSON und animiert dann komplett im Browser
-(`st.iframe` + `requestAnimationFrame`), ohne den Server zu belasten.
-
-**Warum PBKDF2 und Secrets-Datei?** Passwörter werden nie im Klartext
-gespeichert: PBKDF2-SHA256 mit 600.000 Iterationen und Salt pro Benutzer,
-Vergleich über `hmac.compare_digest` (konstante Zeit, gegen Timing-Angriffe).
-Die Demo-Passwörter selbst liegen in `.streamlit/secrets.toml`, die bewusst
-nicht versioniert ist — im Repo liegt nur das Template `secrets.toml.example`.
-
-**Warum Uploads inhaltlich validieren?** Die Dateiendung allein sagt nichts:
-EKG-Uploads werden probeweise als CSV geparst (numerische Signalspalte,
-Mindestanzahl Messwerte), GPX-Dateien müssen mindestens zwei Trackpunkte
-enthalten, Bilder müssen sich von Pillow öffnen lassen. Fehlerhafte Dateien
-werden mit verständlicher Meldung abgelehnt, bevor irgendetwas gespeichert
-wird. Tab-getrennte `.txt`-Exporte werden beim Upload automatisch in CSV
-normalisiert.
-
-**Datenkonventionen:** Datumswerte liegen in der DB immer als ISO-String
-(`YYYY-MM-DD`) und werden erst in der UI deutsch (`TT.MM.JJJJ`) formatiert —
-so bleibt die Sortierung in SQL trivial. Datei-Pfade werden repo-relativ mit
-`/` gespeichert, damit die DB zwischen Windows und Linux portabel ist.
+MIT — siehe [`pyproject.toml`](pyproject.toml).
