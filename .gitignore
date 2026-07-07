@@ -5,6 +5,10 @@ __pycache__/
 .ruff_cache/
 .pdm-python
 .venv/
+.streamlit/secrets.toml
+data/**/*.parquet
+data/cardioconnect.db
 .DS_Store
 .python-version
+.CLAUDE.md
 
